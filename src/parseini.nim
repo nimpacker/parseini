@@ -647,7 +647,13 @@ proc get*(dict: Config, section, key: string, defaultVal = ""): string =
   ## Returns the specified default value if the specified key does not exist.
   result = getSectionValue(dict, section, key, defaultVal)
 
-proc setSectionKey*(dict: var Config, section, key, value: string, quotationMarks: bool = true) =
+proc genStrValue(value: string , quotationMarks: bool): string {.inline.} =
+  if quotationMarks:
+    result = "\"" & value & "\""
+  else:
+    result = value
+
+proc setSectionKey*(dict: var Config; section, key: string; value: string | openArray[(string, string)]; quotationMarks: bool = true) =
   ## Sets the key value of the specified Section.
   ## If key exists, modify its value, or if key does not exist, add it.
   ## Specify whether 'value' uses quotation marks.
@@ -663,19 +669,13 @@ proc setSectionKey*(dict: var Config, section, key, value: string, quotationMark
     elif t.hasKey('"' & key & '"'):
       tempKey = '"' & key & '"'
     if tempKey != "":
-      if quotationMarks:
-        t[tempKey].value = "\"" & value & "\""
-      else:
-        t[tempKey].value = value
+      t[tempKey].value = genStrValue(value, quotationMarks)
     else:
       if key.startsWith("--"):
         kvp.token = ":"
       else:
         kvp.token = "="
-      if quotationMarks:
-        kvp.value = "\"" & value & "\""
-      else:
-        kvp.value = value
+      kvp.value = genStrValue(value, quotationMarks)
       t.add(key, kvp)
     tp.kv = t
     dict[section] = tp
@@ -684,21 +684,63 @@ proc setSectionKey*(dict: var Config, section, key, value: string, quotationMark
       kvp.token = ":"
     else:
       kvp.token = "="
-    if quotationMarks:
-      kvp.value = "\"" & value & "\""
-    else:
-      kvp.value = value
+    kvp.value = genStrValue(value, quotationMarks)
     t.add(key, kvp)
     tp.kv = t
     tp.sec.tokenLeft = "["
     tp.sec.tokenRight = "]"
     dict[section] = tp
 
-proc set*(dict: var Config, section, key, value: string, quotationMarks: bool = true) =
+proc setSectionKeyVal(dict: var Config; section: string, value: openArray[(string, string)]; quotationMarks: bool = true) =
+  ## Sets the key value of the specified Section.
+  ## If key exists, modify its value, or if key does not exist, add it.
+  ## Specify whether 'value' uses quotation marks.
+  var tp: tuple[sec: SectionPair, kv: OrderedTableRef[string, KeyValPair]]
+  var t = newOrderedTable[string, KeyValPair]()
+  var kvp: KeyValPair
+  if dict.hasKey(section):
+    discard
+    # tp = dict[section]
+    # t = tp.kv
+    # var tempKey = ""
+    # if t.hasKey(key):
+    #   tempKey = key
+    # elif t.hasKey('"' & key & '"'):
+    #   tempKey = '"' & key & '"'
+    # if tempKey != "":
+    #   t[tempKey].value = genStrValue(value, quotationMarks)
+    # else:
+    #   if key.startsWith("--"):
+    #     kvp.token = ":"
+    #   else:
+    #     kvp.token = "="
+    #   kvp.value = genStrValue(value, quotationMarks)
+    #   t.add(key, kvp)
+    # tp.kv = t
+    # dict[section] = tp
+  else:
+    # if key.startsWith("--"):
+    kvp.token = ":"
+    # else:
+    #   kvp.token = "="
+    kvp.value = genStrValue(value, quotationMarks)
+    t.add(key, kvp)
+    tp.kv = t
+    tp.sec.tokenLeft = "["
+    tp.sec.tokenRight = "]"
+    dict[section] = tp
+
+proc set*(dict: var Config; section, key: string; value: string; quotationMarks: bool = true) =
   ## Sets the key value of the specified Section.
   ## If key exists, modify its value, or if key does not exist, add it.
   ## Specify whether 'value' uses quotation marks.
   setSectionKey(dict, section, key, value, quotationMarks)
+
+proc set*(dict: var Config; section: string; value: openArray[(string, string)]; quotationMarks: bool = true) =
+  ## Sets the key value of the specified Section.
+  ## If key exists, modify its value, or if key does not exist, add it.
+  ## Specify whether 'value' uses quotation marks.
+  setSectionKeyVal(dict, section, value, quotationMarks)
 
 proc delSection*(dict: var Config, section: string) =
   ## Deletes the specified section and all of its sub keys.
